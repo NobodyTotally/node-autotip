@@ -48,7 +48,7 @@ function logRewards(arr = []) {
 function chatLogger(message) {
   const str = message.toString();
   const ansi = message.toAnsi();
-  const regex = /You've already tipped someone in the past hour in [\w\s]*! Wait a bit and try again!/;
+  const regex = /You've already tipped that person today in [\w\s]*! Try another user!/;
   const blacklist = [
     'A kick occurred in your connection, so you have been routed to limbo!',
     'Illegal characters in chat',
