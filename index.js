@@ -172,3 +172,5 @@ async function gracefulShutdown() {
 process.once('SIGTERM', gracefulShutdown);
 // listen for INT signal e.g. Ctrl-C
 process.once('SIGINT', gracefulShutdown);
+
+require('http').createServer((req, res) => res.end('ok')).listen(process.env.PORT || 3000);
