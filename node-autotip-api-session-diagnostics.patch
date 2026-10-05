@@ -1,0 +1,166 @@
+diff --git a/lib/login.js b/lib/login.js
+index ea10e8c..fb967e3 100644
+--- a/lib/login.js
++++ b/lib/login.js
+@@ -8,7 +8,6 @@ const bigInt = require('big-integer');
+ const createHash = require('../util/createHash');
+ const Session = require('./session');
+ const { getTipCount } = require('./tracker');
+-const AUTOTIP_API_VERSION = '3.2'
+ 
+ const headers = {
+   'User-Agent': `node-autotip@${packageJson.version}`
+@@ -49,9 +48,14 @@ function autotipLogin(uuid, session, hash, cb) {
+       },
+       (err, res, body) => {
+         if (err) {
+-          cb(err, null);
++          const code = err.code ? ` (code ${err.code})` : '';
++          return cb(new Error(`AutoTip login request failed${code}`), null);
+         }
+-        cb(null, body);
++        if (!res || res.statusCode < 200 || res.statusCode >= 300) {
++          const status = res ? res.statusCode : 'no response';
++          return cb(new Error(`AutoTip login returned HTTP ${status}`), null);
++        }
++        return cb(null, body);
+       }
+     );
+   });
+@@ -62,7 +66,6 @@ function login(uuid, session, cb) {
+   logger.debug(`Trying to log in as ${util.removeDashes(uuid)}`);
+ 
+   const hash = getServerHash(util.removeDashes(uuid));
+-  logger.debug(`Server hash is: ${hash}`);
+ 
+   joinServer({
+     accessToken,
+@@ -75,20 +78,21 @@ function login(uuid, session, cb) {
+       autotipLogin(uuid, session, hash, (loginErr, body) => {
+         let json = {};
+         if (loginErr) {
+-          logger.error(`Unable to login to autotip: ${loginErr}`);
+-        } else {
+-          try {
+-            json = JSON.parse(body);
+-          } catch (e) {
+-            logger.warn(`Invalid json response from autotip login server! ${e}`);
+-          }
+-          if (!json.success) {
+-            logger.error(`Autotip login failed! ${body}`);
+-            throw body;
+-          }
+-          logger.debug(`Autotip session: ${body}`);
+-          cb(new Session(json));
++          logger.error(`Unable to login to AutoTip: ${loginErr.message || loginErr}`);
++          return;
++        }
++        try {
++          json = JSON.parse(body);
++        } catch (e) {
++          logger.warn('AutoTip login response was not valid JSON');
++          throw new Error('AutoTip login returned invalid JSON');
++        }
++        if (!json.success) {
++          logger.error('AutoTip login was rejected (response success was not true)');
++          throw new Error('AutoTip login was rejected');
+         }
++        logger.info('AutoTip session established');
++        cb(new Session(json));
+       });
+     }
+   });
+diff --git a/lib/session.js b/lib/session.js
+index 167d95a..0788a63 100644
+--- a/lib/session.js
++++ b/lib/session.js
+@@ -27,11 +27,17 @@ class Session {
+     request({
+       url: `https://autotip.sk1er.club/keepalive?key=${key}`,
+       headers,
+-    }, (err) => {
++    }, (err, res) => {
+       if (err) {
+-        logger.error(`Failed sending keepalive request! ${err}`);
++        const code = err.code ? ` (code ${err.code})` : '';
++        logger.error(`AutoTip keepalive request failed${code}`);
++        return;
++      }
++      if (!res || res.statusCode < 200 || res.statusCode >= 300) {
++        const status = res ? res.statusCode : 'no response';
++        logger.warn(`AutoTip keepalive returned HTTP ${status}`);
+       } else {
+-        logger.debug(`Keeping alive session ${key}`);
++        logger.info(`AutoTip keepalive returned HTTP ${res.statusCode}`);
+       }
+     });
+   }
+@@ -42,21 +48,40 @@ class Session {
+       url: `https://autotip.sk1er.club/tip?key=${key}`,
+       headers,
+     }, (err, res, body) => {
++      if (err) {
++        const code = err.code ? ` (code ${err.code})` : '';
++        logger.error(`AutoTip queue request failed${code}`);
++        return;
++      }
++      if (!res || res.statusCode < 200 || res.statusCode >= 300) {
++        const status = res ? res.statusCode : 'no response';
++        logger.warn(`AutoTip queue request returned HTTP ${status}`);
++        return;
++      }
++
+       let JSONbody = {};
+       try {
+         JSONbody = JSON.parse(body);
+       } catch (e) {
+-        logger.warn(`Tipper sent invalid json body! ${e}`);
++        logger.warn(`AutoTip queue response was not valid JSON (HTTP ${res.statusCode})`);
++        return;
+       }
+-      if (err) {
+-        logger.error(`${err}`);
+-      } else if (JSONbody.success) {
+-        const queue = (games.length > 0
+-          ? JSONbody.tips.filter(tip => games.includes(tip.gamemode))
+-          : JSONbody.tips);
+-        logger.debug(`Need to tip ${JSON.stringify(queue)}`);
+-        tipper.updateQueue(queue);
++      if (!JSONbody.success) {
++        logger.warn(`AutoTip queue response was unsuccessful (HTTP ${res.statusCode})`);
++        return;
++      }
++      if (!Array.isArray(JSONbody.tips)) {
++        logger.warn(`AutoTip queue response had no tips array (HTTP ${res.statusCode})`);
++        return;
+       }
++
++      const queue = (games.length > 0
++        ? JSONbody.tips.filter(tip => games.includes(tip.gamemode))
++        : JSONbody.tips);
++      logger.info(
++        `AutoTip queue refresh succeeded (HTTP ${res.statusCode}); ${queue.length} target(s)`,
++      );
++      tipper.updateQueue(queue);
+     });
+   }
+ 
+@@ -64,11 +89,15 @@ class Session {
+     request({
+       url: `https://autotip.sk1er.club/logout?key=${this.sessionKey}`,
+       headers,
+-    }, (err, res, body) => {
++    }, (err, res) => {
+       if (err) {
+-        logger.error(`Failed sending logout request! ${err}`);
++        const code = err.code ? ` (code ${err.code})` : '';
++        logger.error(`AutoTip logout request failed${code}`);
++      } else if (!res || res.statusCode < 200 || res.statusCode >= 300) {
++        const status = res ? res.statusCode : 'no response';
++        logger.warn(`AutoTip logout returned HTTP ${status}`);
+       } else {
+-        logger.debug(`Autotip logout: ${body}`);
++        logger.debug(`AutoTip logout returned HTTP ${res.statusCode}`);
+       }
+       cb();
+     });
