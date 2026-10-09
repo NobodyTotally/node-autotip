@@ -7,6 +7,7 @@ const logger = require('./lib/logger');
 const { tipIncrement, getLifetimeStats } = require('./lib/tracker');
 const tipper = require('./lib/tipper');
 const util = require('./util/utility');
+const { clickDeliveryRewards } = require('./lib/deliveryRewards');
 const credentials = require('./credentials.json');
 
 let bot;
@@ -14,6 +15,7 @@ let uuid;
 let autotipSession;
 let resyncing = false;
 let locrawInterval;
+let deliveryRewardsAttempted = false;
 
 const options = {
   host: 'mc.hypixel.net',
@@ -81,6 +83,19 @@ function chatLogger(message) {
     }
   }
   logger.game(ansi);
+}
+
+async function runDeliveryRewardsOnce(botInstance) {
+  if (deliveryRewardsAttempted || String(config.CLAIM_DELIVERY_REWARDS).toLowerCase() !== 'true') {
+    return;
+  }
+  deliveryRewardsAttempted = true;
+  logger.info('Starting one-shot Delivery Man reward flow.');
+  await clickDeliveryRewards(
+    botInstance,
+    logger,
+    String(config.TRACE_DELIVERY_PACKETS).toLowerCase() === 'true',
+  );
 }
 
 function onLogin() {
@@ -164,8 +179,15 @@ function onMessage(message, position) {
   bot._client.once('session', session => options.session = session);
   bot.once('login', onLogin);
   bot.once('spawn', () => {
+    const spawnedBot = bot;
     setTimeout(() => {
-      bot.chat('/play arcade_party_games_1');
+      runDeliveryRewardsOnce(spawnedBot)
+        .catch((err) => {
+          logger.warn(`[delivery] One-shot flow stopped: ${err.message}`);
+        })
+        .finally(() => {
+          spawnedBot.chat('/play arcade_party_games_1');
+        });
     }, 3000);
 
     locrawInterval = setInterval(() => {
