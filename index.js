@@ -181,6 +181,7 @@ function onMessage(message, position) {
     locrawInterval = null;
     setTimeout(init, 10000);
   });
+}());
 
 async function gracefulShutdown() {
   logger.info('Received kill signal, shutting down gracefully.');
