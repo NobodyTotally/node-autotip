@@ -13,6 +13,7 @@ let bot;
 let uuid;
 let autotipSession;
 let resyncing = false;
+let locrawInterval;
 
 const options = {
   host: 'mc.hypixel.net',
@@ -104,7 +105,14 @@ function onLogin() {
 function onMessage(message, position) {
   const msg = message.toString();
 
-  if (!resyncing && msg.includes('Out of sync, check your internet connection!')) {
+  const serverMatch = /"server"\s*:\s*"([^"]+)"/i.exec(msg);
+  const isLimboLocation = serverMatch
+    && serverMatch[1].toLowerCase().startsWith('limbo');
+  const isLimboNotice =
+    /A kick occurred in your connection, so you have been routed to limbo!|Out of sync, check your internet connection!/i
+      .test(msg);
+
+  if (!resyncing && (isLimboLocation || isLimboNotice)) {
     resyncing = true;
     bot.chat('/lobby');
 
@@ -118,6 +126,8 @@ function onMessage(message, position) {
     return;
   }
 
+  // Ignore the normal /locraw JSON so it doesn't clutter the log.
+  if (serverMatch) return;
   if (position !== 'chat') return;
   chatLogger(message);
   if (msg.startsWith('You tipped')) {
@@ -158,12 +168,18 @@ function onMessage(message, position) {
       bot.chat('/play arcade_party_games_1');
     }, 3000);
   });
+  locrawInterval = setInterval(() => {
+    bot.chat('/locraw');
+  }, 30000);
   bot.on('message', onMessage);
   bot.on('kicked', (reason) => {
     logger.info(`Kicked for ${reason}`);
   });
-  bot.once('end', () => setTimeout(init, 10000));
-}());
+  bot.once('end', () => {
+    clearInterval(locrawInterval);
+    locrawInterval = null;
+    setTimeout(init, 10000);
+  });
 
 async function gracefulShutdown() {
   logger.info('Received kill signal, shutting down gracefully.');
