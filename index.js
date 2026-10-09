@@ -120,7 +120,6 @@ function onMessage(message, position) {
 
   if (position !== 'chat') return;
   chatLogger(message);
-  chatLogger(message);
   if (msg.startsWith('You tipped')) {
     const arr = getHoverData(message);
     const tips = (/tipped \w* players in (\d*)/.exec(msg) !== null)
