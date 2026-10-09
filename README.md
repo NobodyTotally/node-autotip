@@ -19,6 +19,22 @@ node-autotip also fixes the issue of "That player is not online, try another use
         * In order to track karma gain accurately, update the `TIP_KARMA` value, it is 100 for default rank, 200 for VIP etc. capped at 500 for MVP+.
 5. `npm start`   to start node-autotip
 
+### One-shot Delivery Man rewards
+
+On the first spawn of each Node.js process, the bot opens `/delivery` once and
+looks for the menu item whose live name/lore identifies the Arcade coins and
+Hypixel Experience reward. It clicks that item once, then clicks the daily
+reward diamond/gold block once. If the next menu exposes a single
+`CLICK TO CLAIM!` item, it clicks that once as well. The bot then continues to
+`/play arcade_party_games_1`.
+
+The decoded outgoing `window_click` packet fields are written to the log when
+`TRACE_DELIVERY_PACKETS=true`. Set `CLAIM_DELIVERY_REWARDS=false` to disable the
+flow. Both settings default to `true`. The one-shot guard survives disconnects
+and reconnects in the same process; a new deployment/process starts a new
+attempt. Hypixel may still require a browser, ad, or card-selection step after
+the in-game click.
+
 ## Contributing
 
 We would love to have your input! We want to make contributing to this project as easy and transparent as possible, whether it's:

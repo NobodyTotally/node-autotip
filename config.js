@@ -13,6 +13,8 @@ const defaults = {
   HIDE_JOIN_MESSAGES: true, // Hide player join messages
   HIDE_WATCHDOG_MESSAGES: true, // Hide [WATCHDOG CHEAT DETECTION] messages
   CHANGE_LANGUAGE: 'english', // Changes the Language to your preferred language
+  CLAIM_DELIVERY_REWARDS: 'true', // Claim available Delivery Man rewards once per process
+  TRACE_DELIVERY_PACKETS: 'true', // Log decoded outgoing window_click packet fields
 };
 
 // ensure that process.env has all values in defaults, but prefer the process.env value
