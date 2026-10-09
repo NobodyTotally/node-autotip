@@ -16,6 +16,10 @@ let autotipSession;
 let resyncing = false;
 let locrawInterval;
 let deliveryRewardsAttempted = false;
+let resolveDeliveryStartup;
+const deliveryStartup = new Promise((resolve) => {
+  resolveDeliveryStartup = resolve;
+});
 
 const options = {
   host: 'mc.hypixel.net',
@@ -30,9 +34,9 @@ function getUUID() {
   return bot._client.session.selectedProfile.id;
 }
 
-function setLang(language = 'english') {
+function setLang(language = 'english', botInstance = bot) {
   logger.info(`Changing language to ${language}`);
-  bot.chat(`/lang ${language}`);
+  botInstance.chat(`/lang ${language}`);
 }
 
 function getHoverData(message) {
@@ -100,20 +104,21 @@ async function runDeliveryRewardsOnce(botInstance) {
 
 function onLogin() {
   uuid = getUUID(bot);
-  setLang();
   logger.debug(`Logged on ${options.host}:${options.port}`);
   getLifetimeStats(uuid, (stats) => {
     logger.info(util.toANSI(stats));
   });
   setTimeout(() => {
-    const { session } = bot._client;
-    if (autotipSession === undefined) {
-      login(uuid, session, (aSession) => {
-        autotipSession = aSession;
-        return tipper.initTipper(bot, autotipSession);
-      });
-    }
-    tipper.initTipper(bot, autotipSession);
+    deliveryStartup.then(() => {
+      const { session } = bot._client;
+      if (autotipSession === undefined) {
+        login(uuid, session, (aSession) => {
+          autotipSession = aSession;
+          return tipper.initTipper(bot, autotipSession);
+        });
+      }
+      tipper.initTipper(bot, autotipSession);
+    });
   }, 1000);
 }
 
@@ -186,7 +191,17 @@ function onMessage(message, position) {
           logger.warn(`[delivery] One-shot flow stopped: ${err.message}`);
         })
         .finally(() => {
-          spawnedBot.chat('/play arcade_party_games_1');
+          try {
+            setLang(config.CHANGE_LANGUAGE, spawnedBot);
+          } catch (err) {
+            logger.warn(`[startup] Unable to change language: ${err.message}`);
+          }
+          try {
+            spawnedBot.chat('/play arcade_party_games_1');
+          } catch (err) {
+            logger.warn(`[startup] Unable to join Arcade after Delivery Man flow: ${err.message}`);
+          }
+          resolveDeliveryStartup();
         });
     }, 3000);
 

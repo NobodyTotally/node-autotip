@@ -23,9 +23,11 @@ node-autotip also fixes the issue of "That player is not online, try another use
 
 On the first spawn of each Node.js process, the bot opens `/delivery` once and
 looks for the menu item whose live name/lore identifies the Arcade coins and
-Hypixel Experience reward. It clicks that item once, then clicks the daily
-reward diamond/gold block once. If the next menu exposes a single
-`CLICK TO CLAIM!` item, it clicks that once as well. The bot then continues to
+Hypixel Experience reward. If Hypixel asks to confirm leaving an active game,
+the bot sends the confirmation once. It clicks the coin/experience item once,
+then the daily reward diamond/gold block once. If the next menu exposes a
+single `CLICK TO CLAIM!` item, it clicks that once as well. Only after this
+flow finishes does the bot change language, start AutoTip, and continue to
 `/play arcade_party_games_1`.
 
 The decoded outgoing `window_click` packet fields are written to the log when
