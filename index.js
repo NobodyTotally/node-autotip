@@ -12,6 +12,7 @@ const credentials = require('./credentials.json');
 let bot;
 let uuid;
 let autotipSession;
+let resyncing = false;
 
 const options = {
   host: 'mc.hypixel.net',
@@ -101,8 +102,24 @@ function onLogin() {
 }
 
 function onMessage(message, position) {
-  if (position !== 'chat') return;
   const msg = message.toString();
+
+  if (!resyncing && msg.includes('Out of sync, check your internet connection!')) {
+    resyncing = true;
+    bot.chat('/lobby');
+
+    setTimeout(() => {
+      bot.chat('/play arcade_party_games_1');
+      setTimeout(() => {
+        resyncing = false;
+      }, 5000);
+    }, 3000);
+
+    return;
+  }
+
+  if (position !== 'chat') return;
+  chatLogger(message);
   chatLogger(message);
   if (msg.startsWith('You tipped')) {
     const arr = getHoverData(message);
