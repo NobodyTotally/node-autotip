@@ -167,8 +167,8 @@ function onMessage(message, position) {
     setTimeout(() => {
       bot.chat('/play arcade_party_games_1');
     }, 3000);
+    locrawInterval = setInterval(() => {
   });
-  locrawInterval = setInterval(() => {
     bot.chat('/locraw');
   }, 30000);
   bot.on('message', onMessage);
