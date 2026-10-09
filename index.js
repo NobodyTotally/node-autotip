@@ -137,6 +137,11 @@ function onMessage(message, position) {
   bot = mineflayer.createBot(options);
   bot._client.once('session', session => options.session = session);
   bot.once('login', onLogin);
+  bot.once('spawn', () => {
+    setTimeout(() => {
+      bot.chat('/play arcade_party_games_1');
+    }, 3000);
+  });
   bot.on('message', onMessage);
   bot.on('kicked', (reason) => {
     logger.info(`Kicked for ${reason}`);
